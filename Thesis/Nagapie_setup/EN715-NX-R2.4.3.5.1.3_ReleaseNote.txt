@@ -1,0 +1,416 @@
+==========================================================
+
+   Xavier NX product BSP Release Note - EN715-NX
+
+   ReleaseNote: 1.3
+==========================================================
+
+===================================
+ Installation
+===================================
+
+1. Decompress by root
+   sudo tar zxf EN715-NX-R2.4.3.5.1.3.tar.gz
+
+2. Enter L4T directory
+   cd JetPack_5.1.3_Linux_JETSON/Linux_for_Tegra
+
+3. Select one profile for MIPI CSI camera (optional)
+   (default camera setting is raspberry_pi_v2)
+
+   sudo ./setup.sh
+
+   Supported CSI camera profiles:
+   0) no_csi_camera
+   1) raspberry_pi_v2
+
+
+4. Connect a Jetson platform and a host PC(*) through a Micro USB to USB Cable
+   * The host PC must be a physical Ubuntu 18.04 PC with x64 CPU, not a virtual machine or Jetson platform.
+
+5. Enter the recovery mode 
+   power off -> press recovery button -> power on -> wait 2 seconds -> release recovery button
+
+6. Create user account (recommend)
+   a. Use default user account. ( user_name/password: nvidia )
+      ./create_user.sh
+   b. Create other user name and password as default user
+      ./create_user.sh --create_default_account
+      
+7. Start to flash BSP
+   ./install.sh
+
+8. Flash more modules (speed up)
+
+
+===================================
+ Test Commands
+===================================
+
+1. Install NVidia SDKs 
+   $ sudo apt update && apt depends nvidia-jetpack | awk '{print $2}' | uniq | xargs -I {} bash -c "sudo apt -o Dpkg::Options::="--force-confold" -y install {} ; sudo apt clean"
+
+
+2. Power mode can be modified by the UI on the upper-right corner of Ubuntu or the following commands.
+
+   # get current power mode
+   $ sudo nvpmodel -q
+
+   # setup power mode
+   # where <x> is power mode number, please refer to NVidia website for more information
+   $ sudo nvpmodel -m <x>
+
+   * Current default power mode:
+      NX: MODE 10W DESKTOP (5)
+
+4. RTC Battery
+
+   The following command can get RTC battery voltage.
+   $ sudo avt_tool -a | grep -oP "AIN5.*\[\K[^\]]*"
+
+   The battery should be changed around 2.5v.
+
+5. Fan Speed
+   The following commands can get PWM fan information.
+
+   # get current power setting of PWM Fan (0 ~ 255)
+   $ sudo su
+   $ cat /sys/devices/platform/pwm-fan/hwmon/hwmon4/pwm1
+
+   # set power setting of PWM Fan (0~255)
+   $ sudo su
+   $ echo <PWM_duty_cycle> > /sys/devices/platform/pwm-fan/hwmon/hwmon4/pwm1
+
+   # get fan RPM value (revolutions per minute)
+   $ sudo su
+   $ cat /sys/devices/platform/gpio_tachometer/hwmon/hwmon2/gpiotach_rpm
+
+
+
+6. GPIO usage
+   Please refer to user manual.
+
+   (1) Output: (e.g. gpio480)
+        $ sudo su
+        $ gpio_id=480
+        $ sudo cat /sys/kernel/debug/gpio | grep ${gpio_id}
+        # output:
+          gpio-480 (PX.04               )
+        $ gpio_index=PX.04
+        $ echo ${gpio_id} > /sys/class/gpio/export
+        $ echo out > /sys/class/gpio/${gpio_index}/direction
+        $ echo 1 > /sys/class/gpio/${gpio_index}/value   # HIGH
+        $ echo 0 > /sys/class/gpio/${gpio_index}/value   # LOW
+
+   (2) Input
+        $ sudo su
+        $ gpio_id=480
+        $ sudo cat /sys/kernel/debug/gpio | grep ${gpio_id}
+        # output:
+          gpio-480 (PX.04               )
+        $ gpio_index=PX.04
+        $ echo ${gpio_id} > /sys/class/gpio/export
+        $ echo in > /sys/class/gpio/${gpio_index}/direction
+        $ cat /sys/class/gpio/${gpio_index}/value     # 1: HIGH,  0: LOW
+    
+   (3) Disable
+        $ sudo su
+        $ gpio_id=480
+        $ echo ${gpio_id} >/sys/class/gpio/unexport
+
+7. Below is the test command for cameras. 
+   You can select a different resolution via "width", "height" and "framerate" in below.
+   Change sensor-id number to 1 for second camera.
+
+   > for stability purpose, you can set ISP and VI clock to masximum and locking it
+      MAX_VI_RATE=$(cat /sys/kernel/debug/bpmp/debug/clk/vi/max_rate)
+      MAX_ISP_RATE=$(cat /sys/kernel/debug/bpmp/debug/clk/isp/max_rate)
+      MAX_NVCSI_RATE=$(cat /sys/kernel/debug/bpmp/debug/clk/nvcsi/max_rate)
+      MAX_VIC_RATE=$(cat /sys/kernel/debug/bpmp/debug/clk/vic/max_rate)
+      MAX_EMC_RATE=$(cat /sys/kernel/debug/bpmp/debug/clk/emc/max_rate)
+
+      echo $MAX_VI_RATE > /sys/kernel/debug/bpmp/debug/clk/vi/rate
+      echo $MAX_ISP_RATE > /sys/kernel/debug/bpmp/debug/clk/isp/rate
+      echo $MAX_NVCSI_RATE > /sys/kernel/debug/bpmp/debug/clk/nvcsi/rate
+      echo $MAX_VIC_RATE > /sys/kernel/debug/bpmp/debug/clk/vic/rate
+      echo $MAX_EMC_RATE > /sys/kernel/debug/bpmp/debug/clk/emc/rate
+
+      echo 1 > /sys/kernel/debug/bpmp/debug/clk/vi/mrq_rate_locked
+      echo 1 > /sys/kernel/debug/bpmp/debug/clk/isp/mrq_rate_locked
+      echo 1 > /sys/kernel/debug/bpmp/debug/clk/nvcsi/mrq_rate_locked
+      echo 1 > /sys/kernel/debug/bpmp/debug/clk/vic/mrq_rate_locked
+      echo 1 > /sys/kernel/debug/bpmp/debug/clk/emc/mrq_rate_locked
+
+   > Raspberry pi v2 :
+      No	width	height	framerate
+      0	3280	2464		21
+      1	3280	1848		28
+      2	1920	1080		30
+      3	1640	1232		30
+      4	1280	720		60
+
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3280, height=(int)2464, format=(string)NV12, framerate=(fraction)21/1' ! queue ! nvvidconv ! xvimagesink -e
+
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3280, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! queue ! nvvidconv ! xvimagesink -e
+
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1640, height=(int)1232, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12, framerate=(fraction)60/1' ! queue ! nvvidconv ! xvimagesink -e
+        
+      Multiple:
+      $ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)2464, format=(string)NV12, framerate=(fraction)21/1' ! queue ! nvvidconv ! xvimagesink -e & gst-launch-1.0 nvarguscamerasrc sensor-id=1 sensor-mode=0 ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)2464, format=(string)NV12, framerate=(fraction)21/1' ! nvvidconv ! xvimagesink -e &
+
+   > IMX179 :
+		No	width	height	framerate
+		0	3280	2464		15
+		1	1920	1080		30
+		2	3280	1698		30
+		3	2096	1084		30
+		4	1640	1232		30
+		5	820	616		30
+		6	820	616		60
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3280, height=(int)2464, format=(string)NV12, framerate=(fraction)15/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3280, height=(int)1698, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)2096, height=(int)1084, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1640, height=(int)1232, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)820, height=(int)616, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)820, height=(int)616, format=(string)NV12, framerate=(fraction)60/1' ! queue ! nvvidconv ! xvimagesink -e
+
+	> IMX290 :
+		No	width	height	framerate
+		0	1948	1096		30
+		1	1948	1096		60
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1948, height=(int)1096, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1948, height=(int)1096, format=(string)NV12, framerate=(fraction)60/1' ! queue ! nvvidconv ! xvimagesink -e
+
+	> IMX290ISP :
+		No	width	height	framerate
+		0	1920	1080		25/30/50/60
+		1	1280	 960		25/30/50/60
+		2	1280	 720		25/30/50/60
+		3	 800	 600		25/30/50/60
+		4	 640	 480		25/30/50/60
+		5	 640	 360		25/30/50/60
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=1920, height=1080, framerate=60/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=1280, height=960, framerate=30/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=1280, height=720, framerate=30/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=800, height=600, framerate=30/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=640, height=480, framerate=30/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+		$ gst-launch-1.0 v4l2src io-mode=4 device=/dev/video0 do-timestamp=true ! 'video/x-raw, width=640, height=360, framerate=30/1, format=UYVY' ! queue ! xvimagesink sync=false
+
+	> IMX334 :  (TBD)
+		No	width	height	framerate
+		0	3864	2176		30
+		1	1944	1090		30
+		2	1944	1090		60
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3864, height=(int)2180, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1944, height=(int)1090, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv  top=5 bottom=1085 left=12 right=1932 ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1944, height=(int)1090, format=(string)NV12, framerate=(fraction)60/1' ! queue ! nvvidconv  top=5 bottom=1085 left=12 right=1932 ! xvimagesink -e
+
+	> IMX334 V-by-One :  (TBD)
+		No	width	height	framerate
+		0	3864	2176		30
+		1	1944	1090		30
+		2	1944	1090		60
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3864, height=(int)2180, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1944, height=(int)1090, format=(string)NV12, framerate=(fraction)30/1' ! queue ! nvvidconv  top=5 bottom=1085 left=12 right=1932 ! xvimagesink -e
+
+		$ gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)1944, height=(int)1090, format=(string)NV12, framerate=(fraction)60/1' ! queue ! nvvidconv  top=5 bottom=1085 left=12 right=1932 ! xvimagesink -e
+
+===================================
+ Known Issues
+===================================
+1. In JetPack 5.0.2 for Xavier NX, a kernel panic "netif_carrier_off" may occur.
+2. Xorg may fail on boot
+
+===================================
+ Revision History
+===================================
+
+---------------------------------------
+EN715-NX-R2.4.3.5.1.3 20240730
+---------------------------------------
+- Fix an issue about SD card lost while system reboot
+
+---------------------------------------
+EN715-NX-R2.4.2.5.1.3 20240617
+---------------------------------------
+- Optimize BSP flash procedure
+
+---------------------------------------
+EN715-NX-R2.4.1.5.1.3 20240410
+---------------------------------------
+- apply nv patch to slove camera issue
+
+---------------------------------------
+EN715-NX-R2.4.0.5.1.3 20240306
+---------------------------------------
+- Upgrade to JetPack 5.1.3
+
+---------------------------------------
+EN715-NX-R2.3.2.5.1.2 20231229
+---------------------------------------
+- Apply NV patch to slove camera issue
+
+---------------------------------------
+EN715-NX-R2.3.1.5.1.2 20230912
+---------------------------------------
+- Fix minor issue
+
+---------------------------------------
+EN715-NX-R2.3.0.5.1.2 20230821
+---------------------------------------
+- Upgrade to JetPack 5.1.2
+
+---------------------------------------
+EN715-NX-R2.2.1.5.1.1 20230808
+---------------------------------------
+- Support imx179, imx290, imx290isp, imx334, imx334thcv
+- Upgrade to JetPack 5.1.1 rev.1
+
+---------------------------------------
+EN715-NX-R2.2.0.5.1.1 20230613
+---------------------------------------
+- Upgrade to JetPack 5.1.1 (L4T 35.3.1)
+- Support to query fan rpm.
+
+---------------------------------------
+EN715-NX-R2.1.0.5.1 20230216
+---------------------------------------
+- Assign board numbering: p7150-0000
+- Update to JetPack 5.1 (L4T 35.2.1)
+
+---------------------------------------
+EN715-NX-R2.0.1.5.0.2 20220922
+---------------------------------------
+- Fixed minor issue
+- Update to JetPack 5.0.2 rev.1 (L4T 35.1)
+
+---------------------------------------
+EN715-NX-R2.0.0.5.0.2 20220914
+---------------------------------------
+- Upgrade to JetPack 5.0.2 (L4T 35.1)
+- The following camera is not supported in this release:
+  * ar0234, veye327, imx179, imx290, imx290isp, imx334, imx334thcv
+- Add workaround to fix NV display issue in this release
+
+---------------------------------------
+EN715-NX-R1.0.18.4.6.1 20220329
+---------------------------------------
+- Upgrade to JetPack 4.6.1
+
+---------------------------------------
+EN715-NX-R1.0.17.4.6 20220309
+---------------------------------------
+- Support ECON eCAM24 camera
+- Support Xavier NX 16G
+
+
+---------------------------------------
+EN715-NX-R1.0.16.4.6 20220111
+---------------------------------------
+- Upgrade to JetPack 4.6 rev 3
+
+---------------------------------------
+EN715-NX-R1.0.15.4.6 20210924
+---------------------------------------
+- Support customizing user/password by following command.
+  ./install.sh --create_default_account
+
+---------------------------------------
+EN715-NX-R1.0.13.4.6 20210809
+---------------------------------------
+- Upgrade to JetPack 4.6
+
+---------------------------------------
+EN715-NX-R1.0.12.4.5.1 20210706
+---------------------------------------
+- Improve stability
+- Apply NVidia's security update of 2021-07-02
+
+---------------------------------------
+EN715-NX-R1.0.11.4.5.1 20210423
+---------------------------------------
+- Fixed an issue when ubuntu-desktop is removed
+
+---------------------------------------
+EN715-NX-R1.0.10.4.5.1 20210422
+---------------------------------------
+- Improve stablilty
+
+---------------------------------------
+EN715-NX-R1.0.9.4.5.1 20210323
+---------------------------------------
+- Remove the false alarms of CPU/GPU overcurrent on JetPack 4.5.1
+
+---------------------------------------
+EN715-NX-R1.0.8.4.5.1 20210317 (md5:a712260a906e7157a56dec24d7d53d38)
+---------------------------------------
+- Support CSI camera veye327
+
+---------------------------------------
+EN715-NX-R1.0.7.4.5.1 20210310 (md5:2ce30cc434e9b24d22c18c9e0fe631e7)
+---------------------------------------
+- Upgrade to L4T 32.5.1 (JetPack 4.5.1)
+
+---------------------------------------
+EN715-NX-R1.0.6.4.5 20210208 (md5:0e4562a2e705d12aacde000fa21f286b)
+---------------------------------------
+- Upgrade to L4T 32.5 (JetPack 4.5)
+
+---------------------------------------
+EN715-NX-R1.0.5.4.4 20200728 (md5:4c72d6d497783d1e5c042fb4ceb5d740)
+---------------------------------------
+- Fixed minor issues
+
+---------------------------------------
+EN715-NX-R1.0.4.4.4 20200709 (md5:9b689bd5922862426920fe930fd8c51a)
+---------------------------------------
+- Support JetPack 4.4 (L4T 32.4.3)
+
+---------------------------------------
+EN715-NX-R1.0.3.4.4_DP 20200630 (md5:89265a19da078878805151dc71e05d1e)
+---------------------------------------
+- Fixed a bug that sometimes Ethernet link wasn't detected
+
+---------------------------------------
+EN715-NX-R1.0.2.4.4_DP 20200605 (md5:dcd90817713428fe8bbcf9580d2d8363)
+---------------------------------------
+- Support Appro's camera
+- Fixed the RPM of fan could not be measured.
+
+---------------------------------------
+EN715-NX-R1.0.1.4.4_DP 20200430 (md5:4299b876ddcca6415759ee8316f40564)
+---------------------------------------
+- Fixed MCU communication issue
+- Skip account creation steps
+- Upgrade to L4T 32.4.2
+
+---------------------------------------
+EN715-NX-R1.0.0.4.4	20200424
+---------------------------------------
+- 1st release for Xavier NX
+- Support raspberry pi v2

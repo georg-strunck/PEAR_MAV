@@ -1,10 +1,11 @@
-# ROPE_Real-time_Onboard_Pose_Estimation_for_perching_MAV
+# PEAR_MAV
+
 by Georg Strunck
 
-This is the GitHub repository containing all the work for my thesis, including my literature study, about the pose estimation for a perching MAV.
-
+This is the GitHub repository containing all the work for my thesis, including my literature study, about the pose estimation for a perching MAV.  _Pose_Estimation_And_Real-time_branch_detection_for_outdoor_perching_MAV original repo was the ROPE repo, but transferred tothis new repo._
 
 ## Table of Contents
+
 - [ROPE\_Real-time\_Onboard\_Pose\_Estimation\_for\_perching\_MAV](#rope_real-time_onboard_pose_estimation_for_perching_mav)
   - [Table of Contents](#table-of-contents)
   - [S: Setting up the stereo cam](#s-setting-up-the-stereo-cam)
@@ -24,16 +25,15 @@ This is the GitHub repository containing all the work for my thesis, including m
       - [Gazebo not working](#gazebo-not-working)
       - [Unity not connecting](#unity-not-connecting)
 
-
-
 ## S: Setting up the stereo cam
+
 For the Intel RealSense stereo camera, there are multiple ways to show the feed and change the settings. Below some of them are explained.
 
 ### S1: Using the IntelRealsense Camera Viewer
 
 This only installs the Intel software to view the camera feeds and alter settings. It does not enable you to run ROS-related tasks. For that please see below.
 
-#### S1.1: Install the IntelRealsense SDK to view and configure 
+#### S1.1: Install the IntelRealsense SDK to view and configure
 
 **Note:** Only do this if you do not do the ros package installation below, that already includes the librealsense viewer and if both exist they might clash!
 
@@ -41,7 +41,9 @@ To install the SDK I followed the instructions from [the official Intel tutorial
 The Git repository I cloned under Thesis/Software/librealsense.
 
 #### S1.2: How to view the PointCloud and video feed of the stereo camera
+
 First cd into the LibRealSense folder:
+
 ```
 cd Thesis/Software/librealsense
 ```
@@ -51,8 +53,6 @@ Then it is possible to launch the RealSense viewer displaying the video and poin
 ```
 realsense-viewer
 ```
-
-
 
 ### S2: Using ROS1 with the RealSense camera
 
@@ -65,78 +65,85 @@ On a (more or less) clean Ubuntu 20 version I freshly installed ROS Noetic follo
 
 For refreshing the ROS structure and handling please have a look at the [official ROS tutorials](http://wiki.ros.org/ROS/Tutorials#Core_ROS_Tutorials).
 
-To run any ROS related tasks don't forget to source the environment with: 
+To run any ROS related tasks don't forget to source the environment with:
+
 ```
 source /opt/ros/noetic/setup.bash
 ```
+
 Note that this only holds for the noetic distribution.
-Alternatively, it is possible to add the source to the bash.rc file, if no other ROS distributions are on the system. This can then be called with the 
+Alternatively, it is possible to add the source to the bash.rc file, if no other ROS distributions are on the system. This can then be called with the
+
 ```
 source ~/.bashrc
 ```
+
 shorthand.
 
-#### S2:2 Install RealSense ROS libraries: 
+#### S2:2 Install RealSense ROS libraries:
+
 Then to add the stereo cameras ROS wrapper, simply install them via:
+
 ```
 sudo apt-get install ros-$ROS_DISTRO-realsense2-camera
 ```
 
 #### S2.3: Run ROS, show output
-1. Source the environment: ```source /opt/ros/noetic/setup.bash```
+
+1. Source the environment: ``source /opt/ros/noetic/setup.bash``
 2. Launch the ROS wrapper and publish to the point cloud topic:
-```roslaunch realsense2_camera rs_camera.launch filters:=pointcloud```
-3. Open up Rviz in a new terminal (source again) to view the topics: ```rviz```
+   ``roslaunch realsense2_camera rs_camera.launch filters:=pointcloud``
+3. Open up Rviz in a new terminal (source again) to view the topics: ``rviz``
    1. To add the image stream, click on 'Add', go to the 'By topic' ribbon and select '/camera/color/image_raw/Image' and click 'OK'
    2. To add the pointcloud stream, click on 'Add', go to the 'By topic' ribbon and select '/camera/depth/color/points/PointCloud2' and click 'OK'
 
 ### S3: SDK
+
 There is also the Intel SDK you can download and use. An Ubuntu guide can be found on [the Ubuntu SDK tutorial](https://ubuntu.com/tutorials/using-intel-realsense-sdk#2-getting-started).
 
-
-
 ## SI: Setting up the AvoidBench Simulator
+
 This part of the readme explains how the AvoidBench simulator is being set up.
 The instructions on the [AvoidBench GitHub](https://github.com/tudelft/AvoidBench) were followed.
 The Open3D folder can be found under the  [Thesis/Software](./Thesis/Software/) folder.
 
 ### SI.1: Installing the Simulator
+
 The steps explained [on GitHub](https://github.com/tudelft/AvoidBench) already explain everything necessary.
 
-**Note:** Please use the ```make -j``` command carefully. If your system isn't very stable, better just leave one core for the system (eg. if you have 4 cores, then use ```make-j3```).
+**Note:** Please use the ``make -j`` command carefully. If your system isn't very stable, better just leave one core for the system (eg. if you have 4 cores, then use ``make-j3``).
 
 Make sure to add below your path, on the GitHub this needs to be replaced with your own folder path. It is needed to source the ros setup in the terminal as well.
 
-```echo "export AVOIDBENCH_PATH=~/Documents/Thesis/ROPE_Real-time_Onboard_Pose_Estimation_for_perching_MAV/Thesis/Software/AvoidBench/src/avoidbench" >> ~/.bashrc```
-
+``echo "export AVOIDBENCH_PATH=~/Documents/Thesis/ROPE_Real-time_Onboard_Pose_Estimation_for_perching_MAV/Thesis/Software/AvoidBench/src/avoidbench" >> ~/.bashrc``
 
 ### SI.2: Running the Simulator
+
 Before starting any simulation don't forget to source the ROS workspace and afterwards the avoid_bench build in the AvoidBench directory with:
 
-1. ```source /opt/ros/noetic/setup.bash```
-2. ```source devel/setup.bash```
+1. ``source /opt/ros/noetic/setup.bash``
+2. ``source devel/setup.bash``
 
-To run the flight simulation 
+To run the flight simulation
 
-```roslaunch avoid_manage test_py.launch```
+``roslaunch avoid_manage test_py.launch``
 
-```roslaunch avoid_manage rotors_gazebo.launch```
+``roslaunch avoid_manage rotors_gazebo.launch``
 
 ### SI.P: Procedures
 
 To publish to a topic do tghe below:
-```rostopic pub /hummingbird/autopilot/start std_msgs/Empty```
+``rostopic pub /hummingbird/autopilot/start std_msgs/Empty``
 
 If you do not know what type the message of the topic is like follow the below steps or [this tutorial](https://roboticsbackend.com/ros-topic-command-line-tools-practical-example-rostopic-and-rosmsg/):
 
-```rostopic list ```
-```rostopic info /counter```, where ```/counter``` is your topic in this example.
-```rosmsg show std_msgs/Int32```, to show the structure of the message type of ```/counter```.
-Then based on that the publishing caqn be done. 
+``rostopic list ``
+``rostopic info /counter``, where ``/counter`` is your topic in this example.
+``rosmsg show std_msgs/Int32``, to show the structure of the message type of ``/counter``.
+Then based on that the publishing caqn be done.
 
 ### SI.F: Running into Errors & fixing them
 
 #### Gazebo not working
-
 
 #### Unity not connecting
